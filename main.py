@@ -1,5 +1,5 @@
 import argparse
-from logging import Logger
+import logging
 import os
 from pathlib import Path
 from typing import Self
@@ -64,8 +64,32 @@ class ArgsParser:
         
         # validation for log file ? logger should write in it
 
-def get_logger(name: str) -> Logger:
-    pass
+
+def get_logger(
+    name: str,
+    log_file: Path,
+    level = logging.INFO
+) -> logging.Logger:
+
+    logger = logging.getLogger(name=name)
+    logger.setLevel(level=level)
+
+    if not logger.handlers:
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+
+        # set consol handler to send logs to the consol
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+        # set file handler to send logs to a file
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    return logger
 
 
 class DirectoryComparator:
