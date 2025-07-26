@@ -1,6 +1,8 @@
 import argparse
 from logging import Logger
+import os
 from pathlib import Path
+from typing import Self
 
 
 class ArgsParser:
@@ -16,11 +18,12 @@ class ArgsParser:
         self.replica = replica
         self.interval = interval
         self.sync_amount = sync_amount
-        self.log_file =log_file
+        self.log_file = log_file
+        self._validate_args()
         
 
     @classmethod
-    def from_args(cls):
+    def from_args(cls) -> Self:
         parser = argparse.ArgumentParser(
             description="Synchronizer's argument parser"
         )
@@ -41,6 +44,25 @@ class ArgsParser:
             log_file=Path(args.log_file)
         )
 
+    def _validate_args(self) -> None:
+
+        if not self.source.is_dir():
+            raise ValueError(
+                f"Source folder does not exist or "
+                f"is not a directory: {self.source}"
+            )
+        if not self.replica.exists():
+            os.makedirs(name=self.replica)
+        if not self.replica.is_dir():
+            raise ValueError(
+                f"Replica path is not a directory: {self.replica}"
+            )
+        if self.interval < 0:
+            raise ValueError("Interval must be non-negative")
+        if self.sync_amount < 1:
+            raise ValueError("Synchronization amount must be at least 1")
+        
+        # validation for log file ? logger should write in it
 
 def get_logger(name: str) -> Logger:
     pass
