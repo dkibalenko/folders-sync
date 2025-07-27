@@ -4,6 +4,7 @@ import logging
 import os
 from pathlib import Path
 import shutil
+from time import sleep
 from typing import Iterator, Self
 
 
@@ -100,9 +101,15 @@ class DirectorySynchronizer:
         self.replica_root = replica
         self.logger = logger
 
-    def sync(self) -> None:
+    def sync(self, count: int = 1) -> None:
+        self.logger.info(
+            f"Start sync cycle {count}"
+        )
         self._sync_files()
         self._remove_extra_replica_items()
+        self.logger.info(
+            f"Completed sync cycle {count}"
+        )
 
 
     @staticmethod
@@ -124,18 +131,34 @@ class DirectorySynchronizer:
             )
 
             if source_path.is_dir():
-                replica_path.mkdir(parents=True, exist_ok=True)
-                self.logger.info(f"Created directory: {replica_path}")
+                if not replica_path.exists():
+                    try:
+                        replica_path.mkdir(parents=True)
+                        self.logger.info(f"Created directory: {replica_path}")
+                    except OSError as e:
+                        self.logger.error(
+                        f"Failed to create directory {replica_path}: {e}"
+                    )
             else:
                 is_same_file = filecmp.cmp(
                     source_path, replica_path, shallow=False
                 )
 
                 if not replica_path.exists() or not is_same_file:
-                    shutil.copy2(source_path, replica_path)
-                    self.logger.info(
-                        f"Copied file: {source_path} -> {replica_path}"
-                    )
+                    try:
+                        replica_path.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(source_path, replica_path)
+                        self.logger.info(
+                            f"Copied file: {source_path} -> {replica_path}"
+                        )
+                    except OSError as e:
+                        self.logger.error(
+                            f"Failed to copy file {source_path}: {e}"
+                        )
+                    except Exception as e:
+                        self.logger.error(
+                            f"Unexpected error when copy files: {e}"
+                        )
 
     def _remove_extra_replica_items(self) -> None:
 
@@ -149,16 +172,29 @@ class DirectorySynchronizer:
                 self.replica_root
             )
 
-            if not source_path.exists():
+            if not source_path.exists():  # remove if no replica paths in source
                 # delere replica path
                 if replica_path.is_dir():
-                    shutil.rmtree(replica_path)
-                    self.logger.info(f"Removed directory: {replica_path}")
+                    try:
+                        shutil.rmtree(replica_path)
+                        self.logger.info(f"Removed directory: {replica_path}")
+                    except OSError as e:
+                        self.logger.error(
+                            f"Failed to remove directory {replica_path}: {e}"
+                        )
                 else:
-                    replica_path.unlink()
-                    self.logger.info(f"Removed file: {replica_path}")
-        
-
+                    try:
+                        replica_path.unlink()
+                        self.logger.info(f"Removed file: {replica_path}")
+                    except FileNotFoundError as e:
+                        self.logger.error(
+                            f"File not found for removal: {replica_path} ({e})"
+                        )
+                    except OSError as e:
+                        self.logger.error(
+                            f"Failed to remove file {replica_path}: {e}"
+                        )
+                
 
 def main():
     args_parser = ArgsParser.from_args()
@@ -168,8 +204,14 @@ def main():
         args_parser.replica,
         logger
     )
+    sync_count = 1
     import pdb; pdb.set_trace()
-    synchronizer.sync()
+    for _ in range(args_parser.sync_amount):
+        synchronizer.sync(count=sync_count)
+
+        if sync_count < args_parser.sync_amount:
+             sleep(args_parser.interval)
+             sync_count += 1
 
 
 
