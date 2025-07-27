@@ -65,7 +65,21 @@ class ArgsParser:
         if self.sync_amount < 1:
             raise ValueError("Synchronization amount must be at least 1")
         
-        # validation for log file ? logger should write in it
+        log_file_parent = self.log_file.parent
+
+        if not log_file_parent.exists():
+            try:
+                log_file_parent.mkdir(parents=True, exist_ok=True)
+            except OSError as e:
+                raise ValueError(
+                    f"Failed to create log file directory: {log_file_parent}. "
+                    f"Error: {e}")
+        if self.log_file.exists() and self.log_file.is_dir():
+            raise ValueError(f"Log file path is a directory: {self.log_file}")
+        if not os.access(log_file_parent, os.W_OK):
+            raise ValueError(
+                f"No write permission for log file directory: {log_file_parent}"
+            )
 
 
 def get_logger(
