@@ -97,7 +97,20 @@ class DirectoryComparator:
 
 
 class DirectorySynchronizer:
-    pass
+    def __init__(self, source: Path, replica: Path):
+        self.source_root = source
+        self.replica_root = replica
+
+    def walk_source(self) -> list[Path]:
+        items_to_sync = []
+        # get all items from source root and sub dirs
+        for root, dirs, files in os.walk(self.source_root):
+            for directory in dirs:
+                items_to_sync.append(os.path.join(root, directory))
+            for file in files:
+                items_to_sync.append(os.path.join(root, file))
+
+        return items_to_sync
 
 
 def main():
