@@ -105,12 +105,13 @@ class DirectorySynchronizer:
         self.logger.info(
             f"Start sync cycle {count}"
         )
+        self._sync_dirs()
         self._sync_files()
-        self._remove_extra_replica_items()
+        self._remove_old_replica_files()
+        self._remove_old_replica_dirs()
         self.logger.info(
             f"Completed sync cycle {count}"
         )
-
 
     @staticmethod
     def _walk_directory_gen(dir_path: Path, topdown=True) -> Iterator[Path]:
@@ -121,14 +122,21 @@ class DirectorySynchronizer:
             for file in files:
                 yield Path(root) / file
 
-    def _sync_files(self) -> None:
+    def _replica_path_construct(self, source_path: Path) -> Path:
+        return self.replica_root / source_path.relative_to(
+                self.source_root
+            )
+    
+    def _source_path_construct(self, replica_path: Path) -> Path:
+        return self.source_root / replica_path.relative_to(
+                self.replica_root
+            )
 
+    def _sync_dirs(self) -> None:
         source_paths = self._walk_directory_gen(self.source_root)
 
         for source_path in source_paths:
-            replica_path = self.replica_root / source_path.relative_to(
-                self.source_root
-            )
+            replica_path = self._replica_path_construct(source_path)
 
             if source_path.is_dir():
                 if not replica_path.exists():
@@ -139,12 +147,22 @@ class DirectorySynchronizer:
                         self.logger.error(
                         f"Failed to create directory {replica_path}: {e}"
                     )
-            else:
-                is_same_file = filecmp.cmp(
-                    source_path, replica_path, shallow=False
-                )
+        
+    def _sync_files(self) -> None:
+        source_paths = self._walk_directory_gen(self.source_root)
 
-                if not replica_path.exists() or not is_same_file:
+        for source_path in source_paths:
+            replica_path = self._replica_path_construct(source_path)
+
+            if source_path.is_file():
+                if (
+                    not replica_path.exists()
+                    or not filecmp.cmp(
+                        source_path,
+                        replica_path,
+                        shallow=False
+                    )
+                ):
                     try:
                         replica_path.parent.mkdir(parents=True, exist_ok=True)
                         shutil.copy2(source_path, replica_path)
@@ -160,29 +178,18 @@ class DirectorySynchronizer:
                             f"Unexpected error when copy files: {e}"
                         )
 
-    def _remove_extra_replica_items(self) -> None:
-
+    def _remove_old_replica_files(self) -> None:
         replica_paths = self._walk_directory_gen(
             self.replica_root,
             topdown=False
         )
 
         for replica_path in replica_paths:
-            source_path = self.source_root / replica_path.relative_to(
-                self.replica_root
-            )
+            source_path = self._source_path_construct(replica_path)
 
-            if not source_path.exists():  # remove if no replica paths in source
-                # delere replica path
-                if replica_path.is_dir():
-                    try:
-                        shutil.rmtree(replica_path)
-                        self.logger.info(f"Removed directory: {replica_path}")
-                    except OSError as e:
-                        self.logger.error(
-                            f"Failed to remove directory {replica_path}: {e}"
-                        )
-                else:
+            if not source_path.exists():
+
+                if replica_path.is_file():
                     try:
                         replica_path.unlink()
                         self.logger.info(f"Removed file: {replica_path}")
@@ -194,7 +201,32 @@ class DirectorySynchronizer:
                         self.logger.error(
                             f"Failed to remove file {replica_path}: {e}"
                         )
-                
+
+    def _remove_old_replica_dirs(self) -> None:
+
+        replica_paths = self._walk_directory_gen(
+            self.replica_root,
+            topdown=False
+        )
+
+        for replica_path in replica_paths:
+            source_path = self._source_path_construct(replica_path)
+
+            if not source_path.exists():  # remove only replica paths
+                # delere replica path
+                if replica_path.is_dir():
+                    try:
+                        if replica_path.is_symlink():
+                            replica_path.unlink()
+                            self.logger.info(f"Removed symlink: {replica_path}")
+                        else:
+                            shutil.rmtree(replica_path)
+                            self.logger.info(f"Removed directory: {replica_path}")
+                    except OSError as e:
+                        self.logger.error(
+                            f"Failed to remove directory {replica_path}: {e}"
+                        )
+
 
 def main():
     args_parser = ArgsParser.from_args()
@@ -205,14 +237,13 @@ def main():
         logger
     )
     sync_count = 1
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     for _ in range(args_parser.sync_amount):
         synchronizer.sync(count=sync_count)
 
         if sync_count < args_parser.sync_amount:
              sleep(args_parser.interval)
              sync_count += 1
-
 
 
 if __name__ == "__main__":
