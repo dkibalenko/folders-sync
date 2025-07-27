@@ -140,7 +140,7 @@ class DirectorySynchronizer:
         return self.replica_root / source_path.relative_to(
                 self.source_root
             )
-    
+
     def _source_path_construct(self, replica_path: Path) -> Path:
         return self.source_root / replica_path.relative_to(
                 self.replica_root
@@ -161,7 +161,7 @@ class DirectorySynchronizer:
                         self.logger.error(
                         f"Failed to create directory {replica_path}: {e}"
                     )
-        
+
     def _sync_files(self) -> None:
         source_paths = self._walk_directory_gen(self.source_root)
 

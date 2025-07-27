@@ -2,3 +2,4 @@ todo-list.md
 .vscode/
 __pycache__
 .venv/
+tests.py
