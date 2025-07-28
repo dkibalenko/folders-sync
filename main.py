@@ -22,7 +22,7 @@ class ArgsParser:
         self.interval = interval
         self.sync_amount = sync_amount
         self.log_file = log_file
-        self._validate_args()
+        # self._validate_args()
         
 
     @classmethod
@@ -76,10 +76,10 @@ class ArgsParser:
                     f"Error: {e}")
         if self.log_file.exists() and self.log_file.is_dir():
             raise ValueError(f"Log file path is a directory: {self.log_file}")
-        if not os.access(log_file_parent, os.W_OK):
-            raise ValueError(
-                f"No write permission for log file directory: {log_file_parent}"
-            )
+        # if not os.access(log_file_parent, os.W_OK):
+        #     raise ValueError(
+        #         f"No write permission for log file directory: {log_file_parent}"
+        #     )
 
 
 def get_logger(
