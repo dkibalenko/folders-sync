@@ -3,3 +3,5 @@ todo-list.md
 __pycache__
 .venv/
 tests.py
+.coverage
+coverage.xml
