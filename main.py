@@ -129,6 +129,19 @@ class DirectorySynchronizer:
 
     @staticmethod
     def _walk_directory_gen(dir_path: Path, topdown=True) -> Iterator[Path]:
+        """
+        Iterate recursively from root directory.
+
+        This is a generator of paths which iterates recursively from the given
+        directory, yielding each subdirectory and file.
+
+        Args:
+            dir_path (Path): The path to the root directory.
+            topdown (bool): Whether to iterate top-down or bottom-up. (default: True)
+
+        Yields:
+            Iterator[Path]: An iterator of paths to the subdirectories and files.
+        """
         # iterate recursively from root dir
         for root, dirs, files in os.walk(dir_path, topdown=topdown):
             for directory in dirs:
@@ -147,6 +160,16 @@ class DirectorySynchronizer:
             )
 
     def _sync_dirs(self) -> None:
+        """
+        Synchronizes directories between source and replica directories.
+
+        This method traverses the source directory structure and ensures that
+        all directories present in the source are also present in the replica.
+        If a directory in the source does not exist in the replica, it is created
+        in the replica and the action is logged. Handles potential errors in 
+        directory creation and logs them accordingly.
+        """
+
         source_paths = self._walk_directory_gen(self.source_root)
 
         for source_path in source_paths:
@@ -163,6 +186,17 @@ class DirectorySynchronizer:
                     )
 
     def _sync_files(self) -> None:
+        """
+        Synchronizes files between source and replica directories.
+
+        This method traverses the source directory structure and identifies
+        files that are not present in the replica directory structure or
+        whose contents differ from those in the replica. It copies each
+        identified file to the replica directory structure, and logs the
+        action. Handles both symbolic links and regular files.
+
+        Logs an error if a file cannot be copied.
+        """
         source_paths = self._walk_directory_gen(self.source_root)
 
         for source_path in source_paths:
@@ -193,6 +227,15 @@ class DirectorySynchronizer:
                         )
 
     def _remove_old_replica_files(self) -> None:
+        """
+        Removes files in the replica that do not exist in the source.
+
+        This method traverses the replica directory structure in reverse order 
+        and identifies files that are not present in the source directory structure. 
+        It removes each identified file and logs the action. Handles potential 
+        errors during file removal by logging appropriate error messages.
+        """
+
         replica_paths = self._walk_directory_gen(
             self.replica_root,
             topdown=False
@@ -217,6 +260,17 @@ class DirectorySynchronizer:
                         )
 
     def _remove_old_replica_dirs(self) -> None:
+
+        """
+        Removes directories in the replica that do not exist in the source.
+        
+        This method traverses the replica directory structure and identifies 
+        directories that are not present in the source directory structure. 
+        It removes each identified directory, and logs the action. Handles 
+        both symbolic links and regular directories.
+
+        Logs an error if a directory cannot be removed.
+        """
 
         replica_paths = self._walk_directory_gen(
             self.replica_root,
